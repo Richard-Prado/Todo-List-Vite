@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
-import { Trash2, Pencil } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Trash2, Pencil, SendHorizontal } from 'lucide-react';
 import './App.css'
 
 type Tarefa = {
     id: number;
     msg: string;
     checked: boolean;
+    edit: boolean;
   }
 
 function App() {
@@ -13,7 +14,11 @@ function App() {
     const salvas = localStorage.getItem("tarefas")
     return salvas ? JSON.parse(salvas) : [];
   });
+
   const [novaTarefa, setNovaTarefa] = useState('')
+  const [novaMsg, setNovaMsg] = useState('')
+
+  const inputRef = useRef<HTMLInputElement>(null)
 
   function criarTarefa() {
       if(novaTarefa.trim() === "") return;
@@ -22,6 +27,7 @@ function App() {
         id: Date.now(),
         msg: novaTarefa,
         checked: false,
+        edit: false,
       }
 
       setTarefas([...tarefas,nova])
@@ -34,28 +40,27 @@ function App() {
     ))
   }
 
-  function alterarTarefa(id: number){
-    const tarefa = tarefas.find(t => t.id === id)
-
-    if(!tarefa) return;
-
-    const novaMsg = window.prompt("Editar tarefa",tarefa.msg)
-
-    if(novaMsg === null) return; 
-    setTarefas(tarefas.map(t => 
-      t.id === id ? { ...t, msg: novaMsg} : t
-    ))
-  }
-
   function deletarTarefa(id: number){
     setTarefas(tarefas.filter(t => t.id !== id))
   
   }
 
+  function salvarEdit(id: number, nova: string){
+    if(!nova.trim()) return;
+      
+    setTarefas(tarefas.map(t => t.id === id ? {...t, msg: nova, edit:false} : t))
+  }
+
+  useEffect(() => {
+    const tarefaEdit = tarefas.find(t => t.edit)
+    if (tarefaEdit && inputRef.current){
+      inputRef.current.focus();
+    }
+  }, [tarefas])
+
   useEffect(() => {
     localStorage.setItem("tarefas", JSON.stringify(tarefas))
   }, [tarefas])
-  
 
   return (
     <>
@@ -70,10 +75,32 @@ function App() {
         
         {tarefas.map((tarefa) => (
           <div key={tarefa.id} className='flex gap-1.5 border rounded-2xl p-2 m-2 min-w-2xl'>
-            <input type="checkbox" name="checked" checked={tarefa.checked} onChange={e => completarTarefa(tarefa.id, e.target.checked)} />
-            <p className={`font-bold ${tarefa.checked ? "line-through italic" : ""}`}>{tarefa.msg}</p>
-            <button onClick={() => deletarTarefa(tarefa.id)} className=' cursor-pointer ml-auto'><Trash2 color="red" size={25}/></button>
-            <button onClick={() => alterarTarefa(tarefa.id)}  className='cursor-pointer' ><Pencil color='green' size={25}/></button>
+            {tarefa.edit ? (
+              <>
+                <input className='font-bold w-full h-full border-0 outline-0'
+                  ref={inputRef}
+                  type="text"
+                  value={novaMsg}
+                  onChange={e => setNovaMsg(e.target.value,)}
+                  onBlur={() => {
+                    setNovaMsg("")
+                    setTarefas(tarefas.map(t => t.id === tarefa.id ? {...t,edit:false} : t))
+                    }}>
+                </input>
+                <button type="button" className=' cursor-pointer ml-auto' onMouseDown={() => salvarEdit(tarefa.id, novaMsg)}><SendHorizontal color='green' size={25}/></button>
+              </>
+            ) : (
+              <>
+                <input type="checkbox" name="checked" checked={tarefa.checked} onChange={e => completarTarefa(tarefa.id, e.target.checked)} />
+
+                <p className={`font-bold ${tarefa.checked ? "line-through italic" : ""}`}>{tarefa.msg}</p>
+
+                <button onClick={() => deletarTarefa(tarefa.id)} className=' cursor-pointer ml-auto'><Trash2 color="red" size={25}/></button>
+                <button onClick={() => {setTarefas(tarefas.map(t => t.id === tarefa.id ? {...t, edit:true} : {...t, edit: false}))}}  className='cursor-pointer' ><Pencil color='green' size={25}/></button>
+              </>
+              )}
+            
+            
           </div>
         ))}
 
